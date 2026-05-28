@@ -10,5 +10,5 @@ A Python project that uses the NHL Stats API to pull, store, and analyze NHL dat
 
 ## Authors
 
-- **mpatton79** — primary author
+- **Matt Patton** (mpatton79) — primary author
 - **Claude Sonnet 4.6** (Anthropic) — co-author

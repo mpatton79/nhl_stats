@@ -61,12 +61,13 @@ def fetch_roster(team: str, season: str) -> list[dict]:
     return rows
 
 
-def run():
+def run(seasons: list[str] | None = None):
+    _seasons = seasons or SEASONS
     RAW_ROSTERS.mkdir(parents=True, exist_ok=True)
     LAKE_ROSTERS.mkdir(parents=True, exist_ok=True)
 
     all_rows = []
-    for season in SEASONS:
+    for season in _seasons:
         for team in ALL_TEAMS:
             logger.info("Roster %s %s", team, season)
             rows = fetch_roster(team, season)

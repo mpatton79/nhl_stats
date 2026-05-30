@@ -125,8 +125,9 @@ def fetch_team_stats_for_season(season: str) -> list[dict]:
     return rows
 
 
-def run():
+def run(seasons: list[str] | None = None):
     """Full teams ingestion pipeline."""
+    _seasons = seasons or SEASONS
     LAKE_TEAMS.mkdir(parents=True, exist_ok=True)
     RAW_TEAMS.mkdir(parents=True, exist_ok=True)
 
@@ -139,7 +140,7 @@ def run():
 
     # 2. Standings per season
     all_standings = []
-    for season in SEASONS:
+    for season in _seasons:
         logger.info("Fetching standings for %s", season)
         all_standings.extend(fetch_standings_for_season(season))
 
@@ -153,7 +154,7 @@ def run():
 
     # 3. Team stats per season
     all_stats = []
-    for season in SEASONS:
+    for season in _seasons:
         logger.info("Fetching team stats for %s", season)
         all_stats.extend(fetch_team_stats_for_season(season))
 

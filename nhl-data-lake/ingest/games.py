@@ -115,18 +115,19 @@ def parse_boxscore(game_id: int, season: str, data: dict) -> list[dict]:
     return rows
 
 
-def run(with_boxscores: bool = True):
+def run(with_boxscores: bool = True, seasons: list[str] | None = None):
     """
     Ingest game schedules for all seasons.
     If with_boxscores=True, also fetch per-game player stats.
     """
+    _seasons = seasons or SEASONS
     LAKE_GAMES.mkdir(parents=True, exist_ok=True)
     (RAW_GAMES / "schedules").mkdir(parents=True, exist_ok=True)
     (RAW_GAMES / "boxscores").mkdir(parents=True, exist_ok=True)
 
     # ── 1. Schedules ──────────────────────────────────────────────────────────
     all_games: dict[int, dict] = {}
-    for season in SEASONS:
+    for season in _seasons:
         for team in ALL_TEAMS:
             logger.info("Schedule %s %s", team, season)
             for g in fetch_season_schedule(team, season):

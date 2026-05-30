@@ -100,12 +100,12 @@ def parse_plays(game_id: int, season: str, data: dict) -> list[dict]:
     return rows
 
 
-def run(game_ids_and_seasons: list[tuple[int, str]] | None = None):
+def run(game_ids_and_seasons: list[tuple[int, str]] | None = None, seasons: list[str] | None = None):
     """
     Ingest play-by-play for the provided games.
 
     If game_ids_and_seasons is None, reads the games.parquet to get all
-    finished game IDs automatically.
+    finished game IDs automatically. Pass seasons to restrict to specific seasons.
     """
     RAW_PLAYS.mkdir(parents=True, exist_ok=True)
     LAKE_PLAYS.mkdir(parents=True, exist_ok=True)
@@ -117,6 +117,8 @@ def run(game_ids_and_seasons: list[tuple[int, str]] | None = None):
             return
         df_games = pd.read_parquet(games_parquet)
         finished = df_games[df_games["game_state"].isin(["OFF", "FINAL"])]
+        if seasons:
+            finished = finished[finished["season"].isin(seasons)]
         game_ids_and_seasons = list(zip(finished["game_id"], finished["season"]))
 
     logger.info("Fetching play-by-play for %d games", len(game_ids_and_seasons))

@@ -125,14 +125,15 @@ def build_player_index(skater_rows: list[dict], goalie_rows: list[dict]) -> list
     return players
 
 
-def run():
+def run(seasons: list[str] | None = None):
+    _seasons = seasons or SEASONS
     RAW_PLAYERS.mkdir(parents=True, exist_ok=True)
     (RAW_PLAYERS / "profiles").mkdir(parents=True, exist_ok=True)
     LAKE_PLAYERS.mkdir(parents=True, exist_ok=True)
 
     all_skaters, all_goalies = [], []
 
-    for season in SEASONS:
+    for season in _seasons:
         logger.info("Skater stats %s", season)
         rows = fetch_skater_stats(season)
         all_skaters.extend(rows)

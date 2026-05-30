@@ -97,6 +97,12 @@ python run_pipeline.py --only players
 
 # Resume from a specific step
 python run_pipeline.py --from-step plays
+
+# Ingest a single season only
+python run_pipeline.py --season 20252026
+
+# Single season, single step
+python run_pipeline.py --only games --season 20252026
 ```
 
 ### 3. Query the data

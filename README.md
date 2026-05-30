@@ -7,6 +7,7 @@ A Python project that uses the NHL Stats API to pull, store, and analyze NHL dat
 | Module | Description |
 |---|---|
 | [nhl-data-lake](nhl-data-lake/README.md) | Local data lake of NHL statistics stored as Parquet files and queried with DuckDB |
+| [nhl-api](nhl-api/) | FastAPI backend serving schedule, standings, roster, and player stats from the data lake |
 
 ## Authors
 

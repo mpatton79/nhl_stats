@@ -50,10 +50,23 @@ def fetch_team_list() -> list[dict]:
     return list(teams.values())
 
 
-def fetch_standings_for_season(season: str) -> list[dict]:
-    """Fetch end-of-season standings for a given season string (e.g. '20232024')."""
-    # Use the last day of the regular season standings endpoint
-    url   = f"{NHL_WEB_API}/standings/{season[:4]}-{season[4:6]}-01"
+def _fetch_standings_season_dates() -> dict[str, str]:
+    """Return a mapping of season id → standingsEnd date from the API."""
+    url   = f"{NHL_WEB_API}/standings-season"
+    cache = RAW_TEAMS / "standings_seasons.json"
+    data  = fetch_and_cache(url, cache)
+    if not data:
+        return {}
+    return {
+        str(s.get("id")): s.get("standingsEnd", "")
+        for s in data.get("seasons", [])
+        if s.get("id") and s.get("standingsEnd")
+    }
+
+
+def fetch_standings_for_season(season: str, end_date: str) -> list[dict]:
+    """Fetch end-of-season standings for a given season using its standingsEnd date."""
+    url   = f"{NHL_WEB_API}/standings/{end_date}"
     cache = RAW_TEAMS / f"standings_{season}.json"
     data  = fetch_and_cache(url, cache)
     if not data:
@@ -139,10 +152,15 @@ def run(seasons: list[str] | None = None):
         logger.info("Wrote teams.parquet (%d rows)", len(df))
 
     # 2. Standings per season
+    season_dates = _fetch_standings_season_dates()
     all_standings = []
     for season in _seasons:
-        logger.info("Fetching standings for %s", season)
-        all_standings.extend(fetch_standings_for_season(season))
+        end_date = season_dates.get(season)
+        if not end_date:
+            logger.warning("No standings end date found for season %s, skipping", season)
+            continue
+        logger.info("Fetching standings for %s (end date: %s)", season, end_date)
+        all_standings.extend(fetch_standings_for_season(season, end_date))
 
     if all_standings:
         df = pd.DataFrame(all_standings)

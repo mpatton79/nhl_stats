@@ -2,3 +2,6 @@
 env/
 __pycache__/
 *.pyc
+.DS_Store
+nhl-data-lake/data/
+nhl-data-lake/db/*.duckdb

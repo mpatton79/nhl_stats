@@ -31,6 +31,6 @@ LAKE_DIR    = ROOT / "data" / "lake"
 DB_PATH     = ROOT / "db" / "nhl.duckdb"
 
 # ── HTTP ──────────────────────────────────────────────────────────────────────
-REQUEST_TIMEOUT   = 30   # seconds
+REQUEST_TIMEOUT   = 5   # seconds
 REQUEST_DELAY     = 0.3  # seconds between calls — be a polite API citizen
 MAX_RETRIES       = 3

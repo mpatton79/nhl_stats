@@ -50,6 +50,15 @@ def _register_raw_tables(con: duckdb.DuckDBPyConnection):
         "raw_games":            "games/games.parquet",
         "raw_player_game_stats":"games/player_game_stats.parquet",
         "raw_plays":            "plays",
+        "raw_team_skating_distance":      "edge_stats/team_skating_distance.parquet",
+        "raw_team_skating_speed":         "edge_stats/team_skating_speed.parquet",
+        "raw_team_zone_time":             "edge_stats/team_zone_time.parquet",
+        "raw_team_shot_speed":            "edge_stats/team_shot_speed.parquet",
+        "raw_team_shot_location_totals":  "edge_stats/team_shot_location_totals.parquet",
+        "raw_team_shot_location_details":  "edge_stats/team_shot_location_details.parquet",
+        "raw_skater_edge_stats":           "skater_edge_stats/skater_edge_stats.parquet",
+        "raw_skater_sog_summary":          "skater_edge_stats/skater_sog_summary.parquet",
+        "raw_skater_sog_details":          "skater_edge_stats/skater_sog_details.parquet",
     }
 
     for view_name, rel_path in tables.items():
@@ -155,6 +164,29 @@ def _create_views(con: duckdb.DuckDBPyConnection):
             ROUND(s.points::DOUBLE / NULLIF(s.games_played * 2, 0), 3) AS points_pct,
             s.goals_for - s.goals_against AS goal_diff
         FROM raw_standings s
+    """
+
+    # ── Skater edge stats enriched with player bio ────────────────────────────
+    views["v_skater_edge_stats"] = """
+        SELECT
+            stats.season,
+            stats.player_id,
+            player.last_name,
+            player.first_name,
+            stats.team_abbrev,
+            stats.position,
+            stats.games_played,
+            stats.goals,
+            stats.assists,
+            stats.points,
+            stats.top_shot_speed_imperial,
+            stats.top_shot_speed_percentile,
+            stats.max_skating_speed_imperial,
+            stats.max_skating_speed_percentile,
+            stats.total_distance_imperial,
+            stats.total_distance_percentile
+        FROM raw_skater_edge_stats stats
+        LEFT JOIN raw_players player USING (player_id)
     """
 
     # ── Shot map (goals + shots on goal with coordinates) ────────────────────

@@ -19,7 +19,7 @@ from pathlib import Path
 # Make project root importable
 sys.path.insert(0, str(Path(__file__).parent))
 
-from ingest import teams, rosters, players, games, plays
+from ingest import teams, rosters, players, games, plays, edge_stats, skater_edge_stats
 from db.build_db import build_db
 
 logging.basicConfig(
@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-STEPS = ["teams", "rosters", "players", "games", "plays", "build_db"]
+STEPS = ["teams", "rosters", "players", "games", "plays", "edge_stats", "skater_edge_stats", "build_db"]
 
 
 def run_step(name: str, skip_plays: bool = False, seasons: list[str] | None = None):
@@ -50,6 +50,10 @@ def run_step(name: str, skip_plays: bool = False, seasons: list[str] | None = No
             logger.info("Skipping play-by-play (--skip-plays flag set)")
         else:
             plays.run(seasons=seasons)
+    elif name == "edge_stats":
+        edge_stats.run(seasons=seasons)
+    elif name == "skater_edge_stats":
+        skater_edge_stats.run(seasons=seasons)
     elif name == "build_db":
         build_db()
 

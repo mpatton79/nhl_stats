@@ -38,22 +38,23 @@ else:
                     st.caption(g["series_status"])
 
                 # Teams + scores
-                left, mid, right = st.columns([2, 1, 2])
+                left, right = st.columns(2)
+                def team_card(logo, abbrev, score, record):
+                    score_html = f"<div style='font-size:2.5rem; font-weight:bold'>{score}</div>" if is_live or is_final else ""
+                    logo_html = f"<img src='{logo}' width='60'>" if logo else ""
+                    st.markdown(f"""
+                        <div style='text-align:center'>
+                            {logo_html}
+                            <div><b>{abbrev}</b></div>
+                            {score_html}
+                            <div><small>{record}</small></div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
                 with left:
-                    if g.get("away_logo"):
-                        st.image(g["away_logo"], width=60)
-                    st.markdown(f"**{g['away_abbrev']}**")
-                    st.caption(g["away_record"])
-                with mid:
-                    if is_live or is_final:
-                        st.markdown(f"### {g['away_score']} — {g['home_score']}")
-                    else:
-                        st.markdown("### @")
+                    team_card(g.get("away_logo",""), g["away_abbrev"], g["away_score"], g["away_record"])
                 with right:
-                    if g.get("home_logo"):
-                        st.image(g["home_logo"], width=60)
-                    st.markdown(f"**{g['home_abbrev']}**")
-                    st.caption(g["home_record"])
+                    team_card(g.get("home_logo",""), g["home_abbrev"], g["home_score"], g["home_record"])
 
                 # Status
                 if is_live:

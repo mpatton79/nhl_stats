@@ -19,6 +19,20 @@ def get_game_boxscore(game_id: int) -> dict:
     return _get(f"/gamecenter/{game_id}/boxscore")
 
 
+@st.cache_data(ttl=300)
+def get_series_games(team_abbrev: str, opponent_id: int, year: int) -> list[dict]:
+    season_str = f"{year - 1}{year}"
+    data = _get(f"/club-schedule-season/{team_abbrev}/{season_str}")
+    return [
+        g for g in data.get("games", [])
+        if g.get("gameType") == 3
+        and (
+            g.get("awayTeam", {}).get("id") == opponent_id
+            or g.get("homeTeam", {}).get("id") == opponent_id
+        )
+    ]
+
+
 def parse_team_stats(boxscore: dict) -> pd.DataFrame:
     rows = []
     for side in ("awayTeam", "homeTeam"):
@@ -53,9 +67,8 @@ def parse_player_stats(boxscore: dict, side: str) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=30)
-def get_todays_games() -> list[dict]:
-    today = date.today().strftime("%Y-%m-%d")
-    return _get(f"/score/{today}").get("games", [])
+def get_games_for_date(game_date: date) -> list[dict]:
+    return _get(f"/score/{game_date.strftime('%Y-%m-%d')}").get("games", [])
 
 
 def game_display(game: dict) -> dict:

@@ -3,7 +3,6 @@ import streamlit as st
 import db
 from utils import fmt_season
 
-st.set_page_config(page_title="Edge Stats · NHL Stats", page_icon="🏒", layout="wide")
 st.title("Edge Stats")
 
 season_list = db.seasons("v_skater_edge_stats")
@@ -58,6 +57,7 @@ df = db.query(
     SELECT
         first_name || ' ' || last_name   AS Player,
         team_abbrev                       AS Team,
+        'https://assets.nhle.com/logos/nhl/svg/' || team_abbrev || '_light.svg' AS Logo,
         position                          AS Pos,
         games_played                      AS GP,
         goals                             AS G,
@@ -78,4 +78,11 @@ df = db.query(
 )
 
 st.caption(f"{len(df)} players shown (max 100)")
-st.dataframe(df, use_container_width=True, hide_index=True)
+st.dataframe(
+    df,
+    width="stretch",
+    hide_index=True,
+    column_config={
+        "Logo": st.column_config.ImageColumn("", width="small"),
+    },
+)

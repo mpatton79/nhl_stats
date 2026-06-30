@@ -1,25 +1,32 @@
+import html
 import time
 from datetime import date
 
 import streamlit as st
 
-from nhl_client import (game_display, get_game_boxscore, get_todays_games,
+from nhl_client import (game_display, get_game_boxscore, get_games_for_date,
                         parse_player_stats, parse_team_stats)
 
-st.set_page_config(page_title="NHL Stats", page_icon="🏒", layout="wide")
 
 st.title("🏒 NHL Stats Dashboard")
-st.subheader(f"Today's Games — {date.today().strftime('%B %d, %Y')}")
 
-col_refresh, col_status = st.columns([1, 5])
+today = date.today()
+col_date, col_refresh, col_status = st.columns([2, 1, 3])
+with col_date:
+    selected_date = st.date_input("Date", value=today)
 with col_refresh:
-    if st.button("🔄 Refresh now"):
+    st.write("")  # vertical alignment
+    if st.button("🔄 Refresh"):
         st.cache_data.clear()
         st.rerun()
 with col_status:
-    st.caption("Auto-refreshes every 30 seconds")
+    st.write("")
+    if selected_date == today:
+        st.caption("Auto-refreshes every 30 seconds")
 
-games = get_todays_games()
+st.subheader(f"Games — {selected_date.strftime('%B %d, %Y')}")
+
+games = get_games_for_date(selected_date)
 
 if not games:
     st.info("No games scheduled today.")
@@ -40,16 +47,13 @@ else:
                 # Teams + scores
                 left, right = st.columns(2)
                 def team_card(logo, abbrev, score, record):
-                    score_html = f"<div style='font-size:2.5rem; font-weight:bold'>{score}</div>" if is_live or is_final else ""
-                    logo_html = f"<img src='{logo}' width='60'>" if logo else ""
-                    st.markdown(f"""
-                        <div style='text-align:center'>
-                            {logo_html}
-                            <div><b>{abbrev}</b></div>
-                            {score_html}
-                            <div><small>{record}</small></div>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    center = "text-align:center"
+                    if logo:
+                        st.markdown(f"<div style='{center}'><img src='{logo}' width='60'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='{center}'><b>{abbrev}</b></div>", unsafe_allow_html=True)
+                    if is_live or is_final:
+                        st.markdown(f"<div style='{center};font-size:2.5rem;font-weight:bold'>{score}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='{center}'><small>{html.escape(str(record))}</small></div>", unsafe_allow_html=True)
 
                 with left:
                     team_card(g.get("away_logo",""), g["away_abbrev"], g["away_score"], g["away_record"])
@@ -73,7 +77,7 @@ else:
                         st.dataframe(
                             parse_team_stats(boxscore),
                             hide_index=True,
-                            use_container_width=True,
+                            width="stretch",
                         )
 
                         st.markdown("**Players**")
@@ -84,14 +88,15 @@ else:
                             st.dataframe(
                                 parse_player_stats(boxscore, "awayTeam"),
                                 hide_index=True,
-                                use_container_width=True,
+                                width="stretch",
                             )
                         with home_tab:
                             st.dataframe(
                                 parse_player_stats(boxscore, "homeTeam"),
                                 hide_index=True,
-                                use_container_width=True,
+                                width="stretch",
                             )
 
-time.sleep(30)
-st.rerun()
+if selected_date == today:
+    time.sleep(30)
+    st.rerun()

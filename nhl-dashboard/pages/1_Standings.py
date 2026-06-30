@@ -3,7 +3,6 @@ import streamlit as st
 import db
 from utils import fmt_season
 
-st.set_page_config(page_title="Standings · NHL Stats", page_icon="🏒", layout="wide")
 st.title("Standings")
 
 season_list = db.seasons("v_standings")
@@ -17,6 +16,7 @@ df = db.query(
     """
     SELECT
         division,
+        'https://assets.nhle.com/logos/nhl/svg/' || team_abbrev || '_light.svg' AS Logo,
         team_abbrev        AS Team,
         games_played       AS GP,
         wins               AS W,
@@ -52,8 +52,11 @@ else:
             st.subheader(div)
             st.dataframe(
                 grp.drop(columns=["division"]).reset_index(drop=True),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
+                column_config={
+                    "Logo": st.column_config.ImageColumn("", width="small"),
+                },
             )
 
     with tab_all:

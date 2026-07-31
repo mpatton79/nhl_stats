@@ -145,7 +145,15 @@ def run(seasons: list[str] | None = None):
     RAW_TEAMS.mkdir(parents=True, exist_ok=True)
 
     # 1. Team reference table
+    # standings_now has abbrev but no teamId; stats API has teamId but no abbrev.
+    # Fetch stats for the most recent season first to build a name→id lookup.
+    _recent_stats = fetch_team_stats_for_season(_seasons[-1])
+    _name_to_id = {r["team_name"]: r["team_id"] for r in _recent_stats if r.get("team_id")}
+
     teams = fetch_team_list()
+    for t in teams:
+        if not t["team_id"]:
+            t["team_id"] = _name_to_id.get(t["full_name"])
     if teams:
         df = pd.DataFrame(teams)
         pq.write_table(pa.Table.from_pandas(df), LAKE_TEAMS / "teams.parquet")

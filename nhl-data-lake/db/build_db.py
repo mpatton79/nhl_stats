@@ -195,7 +195,7 @@ def _create_views(con: duckdb.DuckDBPyConnection):
             game_id, season, game_date, home_team, away_team,
             period, period_type, time_in_period,
             event_type,
-            team_abbrev,
+            team_abbrev AS event_team_id,
             x_coord, y_coord, zone_code, shot_type,
             shooting_player_id,
             scoring_player_id,

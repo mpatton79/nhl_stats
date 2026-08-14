@@ -39,6 +39,12 @@ def _safe_coord(val) -> float | None:
     except (TypeError, ValueError):
         return None
 
+def _safe_team_abbrev(val) -> int:
+    if val == '':
+        return -1
+    else:
+        return val
+
 
 def parse_plays(game_id: int, season: str, data: dict) -> list[dict]:
     rows = []
@@ -70,7 +76,7 @@ def parse_plays(game_id: int, season: str, data: dict) -> list[dict]:
             "time_in_period": play.get("timeInPeriod", ""),
             "time_remaining": play.get("timeRemaining", ""),
             "event_type":     type_code,
-            "team_abbrev":    details.get("eventOwnerTeamId", ""),   # may be ID; enriched below
+            "team_abbrev":    _safe_team_abbrev(details.get("eventOwnerTeamId", "")),   # may be ID; enriched below
             "x_coord":        _safe_coord(details.get("xCoord")),
             "y_coord":        _safe_coord(details.get("yCoord")),
             "zone_code":      details.get("zoneCode", ""),           # O, N, D

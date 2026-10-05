@@ -13,6 +13,7 @@ NOTE: This is the heaviest ingest step — one API call per game.
 """
 
 import logging
+from datetime import date, timedelta
 
 import pandas as pd
 import pyarrow as pa
@@ -125,14 +126,25 @@ def run(game_ids_and_seasons: list[tuple[int, str]] | None = None, seasons: list
         finished = df_games[df_games["game_state"].isin(["OFF", "FINAL"])]
         if seasons:
             finished = finished[finished["season"].isin(seasons)]
-        game_ids_and_seasons = list(zip(finished["game_id"], finished["season"]))
+        game_ids_and_seasons = list(
+            zip(finished["game_id"], finished["season"], finished["game_date"])
+        )
 
     logger.info("Fetching play-by-play for %d games", len(game_ids_and_seasons))
 
+    # Only pull new play-by-play for games on or before yesterday — a game from
+    # today may still be live or just-finished, and fetch_and_cache would freeze
+    # that incomplete data permanently. Already-cached games are still used.
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+
     all_plays = []
-    for game_id, season in game_ids_and_seasons:
+    for item in game_ids_and_seasons:
+        game_id, season = item[0], item[1]
+        game_date = item[2] if len(item) > 2 else None
         url   = f"{NHL_WEB_API}/gamecenter/{game_id}/play-by-play"
         cache = RAW_PLAYS / season / f"{game_id}.json"
+        if game_date and game_date > yesterday and not cache.exists():
+            continue  # too recent to cache, and nothing cached yet
         data  = fetch_and_cache(url, cache)
         if data:
             all_plays.extend(parse_plays(game_id, season, data))

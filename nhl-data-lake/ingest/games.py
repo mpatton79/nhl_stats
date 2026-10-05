@@ -24,11 +24,11 @@ RAW_GAMES  = RAW_DIR  / "games"
 LAKE_GAMES = LAKE_DIR / "games"
 
 
-def fetch_season_schedule(team: str, season: str) -> list[dict]:
+def fetch_season_schedule(team: str, season: str, force: bool = False) -> list[dict]:
     """Fetch every game for a team in a season."""
     url   = f"{NHL_WEB_API}/club-schedule-season/{team}/{season}"
     cache = RAW_GAMES / "schedules" / season / f"{team}.json"
-    data  = fetch_and_cache(url, cache)
+    data  = fetch_and_cache(url, cache, force=force)
     if not data:
         return []
 
@@ -126,11 +126,14 @@ def run(with_boxscores: bool = True, seasons: list[str] | None = None):
     (RAW_GAMES / "boxscores").mkdir(parents=True, exist_ok=True)
 
     # ── 1. Schedules ──────────────────────────────────────────────────────────
+    # The current season is in progress: scores and game states change daily, so
+    # always re-pull it. Completed seasons never change and stay cached.
+    current_season = SEASONS[-1]
     all_games: dict[int, dict] = {}
     for season in _seasons:
         for team in ALL_TEAMS:
             logger.info("Schedule %s %s", team, season)
-            for g in fetch_season_schedule(team, season):
+            for g in fetch_season_schedule(team, season, force=(season == current_season)):
                 all_games[g["game_id"]] = g  # deduplicate by game_id
 
     if all_games:

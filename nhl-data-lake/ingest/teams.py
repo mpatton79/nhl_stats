@@ -28,7 +28,7 @@ def fetch_team_list() -> list[dict]:
     """Fetch the master list of NHL franchises."""
     url   = f"{NHL_WEB_API}/standings/now"
     cache = RAW_TEAMS / "standings_now.json"
-    data  = fetch_and_cache(url, cache)
+    data  = fetch_and_cache(url, cache, force=True)  # live resource — always refresh
     if not data:
         return []
 
@@ -54,7 +54,7 @@ def _fetch_standings_season_dates() -> dict[str, str]:
     """Return a mapping of season id → standingsEnd date from the API."""
     url   = f"{NHL_WEB_API}/standings-season"
     cache = RAW_TEAMS / "standings_seasons.json"
-    data  = fetch_and_cache(url, cache)
+    data  = fetch_and_cache(url, cache, force=True)  # live resource — always refresh
     if not data:
         return {}
     return {
@@ -64,11 +64,11 @@ def _fetch_standings_season_dates() -> dict[str, str]:
     }
 
 
-def fetch_standings_for_season(season: str, end_date: str) -> list[dict]:
+def fetch_standings_for_season(season: str, end_date: str, force: bool = False) -> list[dict]:
     """Fetch end-of-season standings for a given season using its standingsEnd date."""
     url   = f"{NHL_WEB_API}/standings/{end_date}"
     cache = RAW_TEAMS / f"standings_{season}.json"
-    data  = fetch_and_cache(url, cache)
+    data  = fetch_and_cache(url, cache, force=force)
     if not data:
         return []
 
@@ -101,7 +101,7 @@ def fetch_standings_for_season(season: str, end_date: str) -> list[dict]:
     return rows
 
 
-def fetch_team_stats_for_season(season: str) -> list[dict]:
+def fetch_team_stats_for_season(season: str, force: bool = False) -> list[dict]:
     """Fetch aggregated team stats from the stats REST API."""
     url   = f"{NHL_STATS_API}/team/summary"
     cache = RAW_TEAMS / f"team_stats_{season}.json"
@@ -109,7 +109,7 @@ def fetch_team_stats_for_season(season: str) -> list[dict]:
         "cayenneExp": f"seasonId={season} and gameTypeId=2",
         "limit":      -1,
     }
-    data = fetch_and_cache(url, cache, params=params)
+    data = fetch_and_cache(url, cache, params=params, force=force)
     if not data:
         return []
 
@@ -144,10 +144,15 @@ def run(seasons: list[str] | None = None):
     LAKE_TEAMS.mkdir(parents=True, exist_ok=True)
     RAW_TEAMS.mkdir(parents=True, exist_ok=True)
 
+    # The latest season is in progress: its standings/stats change daily, so the
+    # raw cache for it must always be refreshed. Completed seasons never change,
+    # so they stay cached (fast, and polite to the API).
+    current_season = _seasons[-1]
+
     # 1. Team reference table
     # standings_now has abbrev but no teamId; stats API has teamId but no abbrev.
     # Fetch stats for the most recent season first to build a name→id lookup.
-    _recent_stats = fetch_team_stats_for_season(_seasons[-1])
+    _recent_stats = fetch_team_stats_for_season(current_season, force=True)
     _name_to_id = {r["team_name"]: r["team_id"] for r in _recent_stats if r.get("team_id")}
 
     teams = fetch_team_list()
@@ -168,7 +173,9 @@ def run(seasons: list[str] | None = None):
             logger.warning("No standings end date found for season %s, skipping", season)
             continue
         logger.info("Fetching standings for %s (end date: %s)", season, end_date)
-        all_standings.extend(fetch_standings_for_season(season, end_date))
+        all_standings.extend(
+            fetch_standings_for_season(season, end_date, force=(season == current_season))
+        )
 
     if all_standings:
         df = pd.DataFrame(all_standings)
@@ -182,7 +189,7 @@ def run(seasons: list[str] | None = None):
     all_stats = []
     for season in _seasons:
         logger.info("Fetching team stats for %s", season)
-        all_stats.extend(fetch_team_stats_for_season(season))
+        all_stats.extend(fetch_team_stats_for_season(season, force=(season == current_season)))
 
     if all_stats:
         df = pd.DataFrame(all_stats)

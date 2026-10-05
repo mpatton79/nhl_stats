@@ -28,7 +28,7 @@ RAW_DIR_SKATER  = RAW_DIR  / "skater_edge_stats"
 LAKE_DIR_SKATER = LAKE_DIR / "skater_edge_stats"
 
 GAME_TYPE = 2
-EDGE_STATS_FIRST_SEASON = "20192020"
+EDGE_STATS_FIRST_SEASON = "20212022"  # edge stats not available before this
 
 
 def _load_player_ids_by_season(seasons: list[str]) -> dict[str, list[int]]:

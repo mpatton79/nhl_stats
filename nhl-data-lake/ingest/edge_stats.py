@@ -35,7 +35,7 @@ RAW_EDGE  = RAW_DIR  / "edge_stats"
 LAKE_EDGE = LAKE_DIR / "edge_stats"
 
 GAME_TYPE = 2  # regular season
-EDGE_STATS_FIRST_SEASON = "20192020"  # edge stats not available before this
+EDGE_STATS_FIRST_SEASON = "20212022"  # edge stats not available before this
 
 _HARDCODED_TEAM_IDS: dict[str, str] = {
     "ANA": "24", "BOS": "6",  "BUF": "7",  "CAR": "12", "CBJ": "29",

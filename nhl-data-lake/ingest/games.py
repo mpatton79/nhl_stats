@@ -59,57 +59,76 @@ def fetch_boxscore(game_id: int, season: str) -> dict | None:
     return fetch_and_cache(url, cache)
 
 
+def _saves_shots(val) -> tuple[int | None, int | None]:
+    """Split a goalie split like "14/15" (saves/shots) into (14, 15)."""
+    try:
+        saves, shots = str(val).split("/")
+        return int(saves), int(shots)
+    except (ValueError, AttributeError):
+        return None, None
+
+
 def parse_boxscore(game_id: int, season: str, data: dict) -> list[dict]:
-    """Flatten player stats out of a boxscore response."""
+    """Flatten player stats out of a boxscore response.
+
+    Player stats live under playerByGameStats.{homeTeam,awayTeam}.{forwards,defense,goalies}.
+    """
     rows = []
     if not data:
         return rows
 
     game_date = data.get("gameDate", "")
-    home_abbr = data.get("homeTeam", {}).get("abbrev", "")
-    away_abbr = data.get("awayTeam", {}).get("abbrev", "")
+    by_side   = data.get("playerByGameStats", {})
 
-    for side, abbr in [("homeTeam", home_abbr), ("awayTeam", away_abbr)]:
-        team_data = data.get(side, {})
-        players   = team_data.get("skaters", []) + team_data.get("goalies", [])
+    for side in ("homeTeam", "awayTeam"):
+        abbr  = data.get(side, {}).get("abbrev", "")
+        group = by_side.get(side, {})
+        players = group.get("forwards", []) + group.get("defense", []) + group.get("goalies", [])
         for p in players:
             base = {
                 "game_id":     game_id,
                 "season":      season,
                 "game_date":   game_date,
                 "team_abbrev": abbr,
-                "player_id":   p.get("playerId") or p.get("id"),
+                "is_home":     side == "homeTeam",
+                "player_id":   p.get("playerId"),
                 "name":        p.get("name", {}).get("default", ""),
-                "position":    p.get("position", ""),
-                "is_starter":  p.get("starter", False),
+                "position":    p.get("position", ""),     # C/L/R, D, or G
                 "toi":         p.get("toi", ""),
+                "pim":         p.get("pim", 0),
             }
             if p.get("position") == "G":
+                ev_saves, ev_shots = _saves_shots(p.get("evenStrengthShotsAgainst"))
+                pp_saves, pp_shots = _saves_shots(p.get("powerPlayShotsAgainst"))
+                sh_saves, sh_shots = _saves_shots(p.get("shorthandedShotsAgainst"))
                 base.update({
-                    "shots_against": p.get("shotsAgainst", 0),
-                    "saves":         p.get("saves", 0),
-                    "goals_against": p.get("goalsAgainst", 0),
-                    "save_pct":      p.get("savePctg", 0.0),
-                    "even_shots_against":  p.get("evenShotsAgainst", 0),
-                    "even_saves":          p.get("evenSaves", 0),
-                    "pp_shots_against":    p.get("powerPlayShotsAgainst", 0),
-                    "pp_saves":            p.get("powerPlaySaves", 0),
+                    "is_starter":         p.get("starter", False),
+                    "decision":           p.get("decision"),   # W / L / O, or None if no decision
+                    "shots_against":      p.get("shotsAgainst", 0),
+                    "saves":              p.get("saves", 0),
+                    "goals_against":      p.get("goalsAgainst", 0),
+                    "save_pct":           p.get("savePctg"),
+                    "even_shots_against": ev_shots,
+                    "even_saves":         ev_saves,
+                    "pp_shots_against":   pp_shots,
+                    "pp_saves":           pp_saves,
+                    "sh_shots_against":   sh_shots,
+                    "sh_saves":           sh_saves,
                 })
             else:
                 base.update({
-                    "goals":      p.get("goals", 0),
-                    "assists":    p.get("assists", 0),
-                    "points":     p.get("points", 0),
-                    "plus_minus": p.get("plusMinus", 0),
-                    "pim":        p.get("pim", 0),
-                    "shots":      p.get("shots", 0),
-                    "hits":       p.get("hits", 0),
-                    "blocked":    p.get("blockedShots", 0),
-                    "pp_goals":   p.get("powerPlayGoals", 0),
-                    "pp_points":  p.get("powerPlayPoints", 0),
-                    "sh_goals":   p.get("shorthandedGoals", 0),
-                    "faceoff_wins":   p.get("faceoffWins", 0),
-                    "faceoff_taken":  p.get("faceoffTaken", 0),
+                    "goals":           p.get("goals", 0),
+                    "assists":         p.get("assists", 0),
+                    "points":          p.get("points", 0),
+                    "plus_minus":      p.get("plusMinus", 0),
+                    "shots":           p.get("sog", 0),
+                    "hits":            p.get("hits", 0),
+                    "blocked":         p.get("blockedShots", 0),
+                    "pp_goals":        p.get("powerPlayGoals", 0),
+                    "giveaways":       p.get("giveaways", 0),
+                    "takeaways":       p.get("takeaways", 0),
+                    "shifts":          p.get("shifts", 0),
+                    "faceoff_win_pct": p.get("faceoffWinningPctg"),
                 })
             rows.append(base)
     return rows

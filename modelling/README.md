@@ -4,6 +4,8 @@ An expected-goals (xG) model for NHL shots. It estimates the probability that an
 
 See [MODEL.md](MODEL.md) for the full design: features, filters, data conventions, the season split and results.
 
+It also contains a **pre-game forecast** of xG for games that haven't been played yet. See [forecast/README.md](forecast/README.md).
+
 ## Pipeline
 
 ```
@@ -19,6 +21,7 @@ raw_plays ──► load_shots ──► engineer ──► model_frame ──�
 | `xg/features.py` | Shot loading and feature engineering, shared by training and scoring |
 | `xg/train.py` | Trains a logistic baseline and LightGBM, evaluates them on the test season, and saves the model |
 | `xg/predict.py` | Scores shots with the saved model and writes the predictions to the lake |
+| `forecast/` | Forecasts xG for upcoming games from recency-weighted team ratings and a weighted bootstrap ([README](forecast/README.md)) |
 
 ## Prerequisites
 

@@ -7,10 +7,10 @@ Usage:
     python run_pipeline.py --only teams # run a single step
 
 Steps (run in order):
-    teams → rosters → players → games → plays → edge_stats → skater_edge_stats → xg → build_db
+    teams → rosters → players → games → plays → edge_stats → skater_edge_stats → xg → forecast → build_db
 
 The xg step scores shots with the trained model in ../modelling (skipped if no
-model has been trained yet).
+model has been trained yet); forecast then projects xG for upcoming games.
 """
 
 import argparse
@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from ingest import teams, rosters, players, games, plays, edge_stats, skater_edge_stats
 from db.build_db import build_db
+from config import LAKE_DIR
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,7 +34,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-STEPS = ["teams", "rosters", "players", "games", "plays", "edge_stats", "skater_edge_stats", "xg", "build_db"]
+STEPS = ["teams", "rosters", "players", "games", "plays", "edge_stats", "skater_edge_stats", "xg", "forecast", "build_db"]
 
 MODELLING_DIR = Path(__file__).parent.parent / "modelling"
 
@@ -50,6 +51,20 @@ def run_xg(seasons: list[str] | None = None):
         logger.warning("xG dependencies missing (%s) — pip install -r modelling/requirements.txt", e)
         return
     predict.run(seasons=seasons)
+
+
+def run_forecast():
+    """Forecast xG for upcoming games from the shot-level xG in the lake."""
+    if not (LAKE_DIR / "xg").exists():
+        logger.warning("No shot xG in the lake yet — skipping forecast (run the xg step first)")
+        return
+    sys.path.insert(0, str(MODELLING_DIR))
+    try:
+        from forecast import predict as forecast_predict
+    except ImportError as e:
+        logger.warning("Forecast dependencies missing (%s) — pip install -r modelling/requirements.txt", e)
+        return
+    forecast_predict.run()
 
 
 def run_step(name: str, skip_plays: bool = False, seasons: list[str] | None = None):
@@ -75,6 +90,8 @@ def run_step(name: str, skip_plays: bool = False, seasons: list[str] | None = No
         skater_edge_stats.run(seasons=seasons)
     elif name == "xg":
         run_xg(seasons=seasons)
+    elif name == "forecast":
+        run_forecast()
     elif name == "build_db":
         build_db()
 

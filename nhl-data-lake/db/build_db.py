@@ -60,6 +60,7 @@ def _register_raw_tables(con: duckdb.DuckDBPyConnection):
         "raw_skater_sog_summary":          "skater_edge_stats/skater_sog_summary.parquet",
         "raw_skater_sog_details":          "skater_edge_stats/skater_sog_details.parquet",
         "raw_shot_xg":                     "xg",   # written by modelling/xg/predict.py
+        "raw_xg_forecast":                 "xg_forecast",   # modelling/forecast/predict.py
     }
 
     for view_name, rel_path in tables.items():
@@ -241,6 +242,13 @@ def _create_views(con: duckdb.DuckDBPyConnection):
         FROM raw_shot_xg x
         LEFT JOIN raw_games g    ON g.game_id    = x.game_id
         LEFT JOIN raw_players pl ON pl.player_id = CAST(x.shooter_id AS BIGINT)
+    """
+
+    # ── Pre-game xG forecasts — latest run only (raw_xg_forecast keeps history) ──
+    views["v_game_xg_forecast"] = """
+        SELECT * EXCLUDE (forecast_date), CAST(forecast_date AS DATE) AS forecast_date
+        FROM raw_xg_forecast
+        WHERE CAST(forecast_date AS DATE) = (SELECT MAX(CAST(forecast_date AS DATE)) FROM raw_xg_forecast)
     """
 
     for name, sql in views.items():

@@ -9,6 +9,7 @@ A Python project that uses the NHL Stats API to pull, store, and analyze NHL dat
 | [nhl-data-lake](nhl-data-lake/README.md) | Local data lake of NHL statistics stored as Parquet files and queried with DuckDB |
 | [nhl-api](nhl-api/) | FastAPI backend serving schedule, standings, roster, and player stats from the data lake |
 | [nhl-dashboard](nhl-dashboard/) | Streamlit web dashboard with live scores, standings, player stats, edge analytics, playoff bracket, and player bio pages |
+| [modelling](modelling/MODEL.md) | Expected-goals (xG) model — LightGBM trained on play-by-play, scored daily into the data lake (`v_shot_xg`) |
 
 ## Authors
 

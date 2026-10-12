@@ -59,6 +59,7 @@ def _register_raw_tables(con: duckdb.DuckDBPyConnection):
         "raw_skater_edge_stats":           "skater_edge_stats/skater_edge_stats.parquet",
         "raw_skater_sog_summary":          "skater_edge_stats/skater_sog_summary.parquet",
         "raw_skater_sog_details":          "skater_edge_stats/skater_sog_details.parquet",
+        "raw_shot_xg":                     "xg",   # written by modelling/xg/predict.py
     }
 
     for view_name, rel_path in tables.items():
@@ -229,6 +230,17 @@ def _create_views(con: duckdb.DuckDBPyConnection):
         LEFT JOIN raw_players a2     ON a2.player_id     = g.assist2_player_id
         LEFT JOIN raw_players gl     ON gl.player_id     = g.goalie_player_id
         WHERE g.event_type = 'goal'
+    """
+
+    # ── Expected goals per shot (modelling/xg) ────────────────────────────────
+    views["v_shot_xg"] = """
+        SELECT
+            x.*,
+            CASE WHEN x.is_home = 1 THEN g.home_team ELSE g.away_team END AS team,
+            pl.first_name || ' ' || pl.last_name AS shooter_name
+        FROM raw_shot_xg x
+        LEFT JOIN raw_games g    ON g.game_id    = x.game_id
+        LEFT JOIN raw_players pl ON pl.player_id = CAST(x.shooter_id AS BIGINT)
     """
 
     for name, sql in views.items():

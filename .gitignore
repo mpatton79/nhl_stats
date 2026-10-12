@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 nhl-data-lake/data/
 nhl-data-lake/db/*.duckdb
+modelling/models/

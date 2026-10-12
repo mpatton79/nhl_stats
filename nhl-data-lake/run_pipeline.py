@@ -7,7 +7,10 @@ Usage:
     python run_pipeline.py --only teams # run a single step
 
 Steps (run in order):
-    teams → rosters → players → games → plays → build_db
+    teams → rosters → players → games → plays → edge_stats → skater_edge_stats → xg → build_db
+
+The xg step scores shots with the trained model in ../modelling (skipped if no
+model has been trained yet).
 """
 
 import argparse
@@ -30,7 +33,23 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-STEPS = ["teams", "rosters", "players", "games", "plays", "edge_stats", "skater_edge_stats", "build_db"]
+STEPS = ["teams", "rosters", "players", "games", "plays", "edge_stats", "skater_edge_stats", "xg", "build_db"]
+
+MODELLING_DIR = Path(__file__).parent.parent / "modelling"
+
+
+def run_xg(seasons: list[str] | None = None):
+    """Score shots with the saved xG model (latest season unless seasons given)."""
+    if not (MODELLING_DIR / "models" / "xg_model.joblib").exists():
+        logger.warning("No trained xG model — skipping (run `python -m xg.train` in modelling/)")
+        return
+    sys.path.insert(0, str(MODELLING_DIR))
+    try:
+        from xg import predict
+    except ImportError as e:
+        logger.warning("xG dependencies missing (%s) — pip install -r modelling/requirements.txt", e)
+        return
+    predict.run(seasons=seasons)
 
 
 def run_step(name: str, skip_plays: bool = False, seasons: list[str] | None = None):
@@ -54,6 +73,8 @@ def run_step(name: str, skip_plays: bool = False, seasons: list[str] | None = No
         edge_stats.run(seasons=seasons)
     elif name == "skater_edge_stats":
         skater_edge_stats.run(seasons=seasons)
+    elif name == "xg":
+        run_xg(seasons=seasons)
     elif name == "build_db":
         build_db()
 

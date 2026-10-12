@@ -54,6 +54,8 @@ def parse_plays(game_id: int, season: str, data: dict) -> list[dict]:
 
     home = data.get("homeTeam", {}).get("abbrev", "")
     away = data.get("awayTeam", {}).get("abbrev", "")
+    home_id = data.get("homeTeam", {}).get("id")
+    away_id = data.get("awayTeam", {}).get("id")
     game_date = data.get("gameDate", "")
 
     for play in data.get("plays", []):
@@ -71,7 +73,10 @@ def parse_plays(game_id: int, season: str, data: dict) -> list[dict]:
             "game_date":      game_date,
             "home_team":      home,
             "away_team":      away,
+            "home_team_id":   home_id,
+            "away_team_id":   away_id,
             "event_id":       play.get("eventId"),
+            "sort_order":     play.get("sortOrder"),   # chronological; event_id is not
             "period":         pd_desc.get("number"),
             "period_type":    pd_desc.get("periodType", ""),
             "time_in_period": play.get("timeInPeriod", ""),
@@ -99,9 +104,10 @@ def parse_plays(game_id: int, season: str, data: dict) -> list[dict]:
             "home_score":      details.get("homeScore"),
             "away_score":      details.get("awayScore"),
             "situation_code":  situation,
-            # Strength: parse from situationCode (e.g. 1551 = 5v5, 1541 = 5v4 PP)
-            "home_skaters":    int(situation[1]) if situation and len(situation) >= 2 else None,
-            "away_skaters":    int(situation[2]) if situation and len(situation) >= 3 else None,
+            # Strength from situationCode, laid out as
+            # [away goalie][away skaters][home skaters][home goalie], e.g. 1560 = home goalie pulled
+            "away_skaters":    int(situation[1]) if situation and len(situation) >= 2 else None,
+            "home_skaters":    int(situation[2]) if situation and len(situation) >= 3 else None,
         }
         rows.append(row)
     return rows

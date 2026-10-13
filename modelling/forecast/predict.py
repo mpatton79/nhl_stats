@@ -24,7 +24,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from .config import DB_PATH, FORECAST_DIR, N_DRAWS, QUANTILES, SEED
-from .engine import RatingEngine, load_completed, load_upcoming
+from .engine import RatingEngine, load_completed, load_upcoming, win_probability
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ def forecast(completed: pd.DataFrame, upcoming: pd.DataFrame, as_of: date) -> pd
             for q, v in zip(QUANTILES, np.quantile(draws, QUANTILES)):
                 row[f"{side}_xg_p{int(q * 100)}"] = v
         row["p_home_xg_higher"] = float((home > away).mean())
+        row["p_home_win"] = win_probability(home, away, rng)
         row.update({
             "home_off_rating": exp["home_off"], "home_def_rating": exp["home_def"],
             "away_off_rating": exp["away_off"], "away_def_rating": exp["away_def"],
@@ -96,7 +97,7 @@ def main():
     out = run(as_of=args.date, days=args.days)
     if not out.empty:
         cols = ["game_date", "away_team", "home_team", "away_xg", "home_xg",
-                "away_xg_p10", "away_xg_p90", "home_xg_p10", "home_xg_p90", "p_home_xg_higher"]
+                "away_xg_p10", "away_xg_p90", "home_xg_p10", "home_xg_p90", "p_home_xg_higher", "p_home_win"]
         print(out[cols].head(12).round(2).to_string(index=False))
 
 

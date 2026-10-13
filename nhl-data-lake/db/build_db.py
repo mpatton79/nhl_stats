@@ -33,7 +33,8 @@ def _parquet(relative_path: str) -> str:
     """Return a glob path for a parquet file or partitioned directory."""
     p = LAKE_DIR / relative_path
     if p.is_dir():
-        return f"read_parquet('{p}/**/*.parquet', hive_partitioning=true)"
+        # union_by_name: partitions written before a column was added still load
+        return f"read_parquet('{p}/**/*.parquet', hive_partitioning=true, union_by_name=true)"
     return f"read_parquet('{p}')"
 
 

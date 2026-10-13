@@ -18,6 +18,10 @@ each team. A forecast draws from the team's own residual history, weighted by
 the same recency decay (weighted bootstrap), and multiplies by the expected
 value. Teams with too little history fall back to the league residual pool.
 
+Win probability — each paired xG draw becomes a goal total via a Poisson draw
+(goals from many small-probability shots are close to Poisson with mean xG);
+ties count as a 50/50 overtime or shootout.
+
 The engine is online: it walks games in date order, predicts each one from
 state built only on earlier games, then updates. Backtests are therefore
 out-of-sample by construction.
@@ -48,7 +52,8 @@ def load_completed(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         SELECT g.game_id, CAST(g.season AS VARCHAR) AS season, g.game_date, g.start_time_utc,
                g.game_type, g.home_team, g.away_team,
                SUM(CASE WHEN x.is_home = 1 THEN x.xg ELSE 0 END) AS home_xg,
-               SUM(CASE WHEN x.is_home = 0 THEN x.xg ELSE 0 END) AS away_xg
+               SUM(CASE WHEN x.is_home = 0 THEN x.xg ELSE 0 END) AS away_xg,
+               g.home_score, g.away_score
         FROM raw_games g
         JOIN raw_shot_xg x ON x.game_id = g.game_id
         WHERE g.game_type IN ({_TYPES}) AND g.game_state IN ('OFF', 'FINAL')
@@ -162,3 +167,10 @@ class RatingEngine:
         else:                                   # very first games of history
             draws = np.ones(n)
         return expected * draws
+
+
+def win_probability(home_draws: np.ndarray, away_draws: np.ndarray,
+                    rng: np.random.Generator) -> float:
+    """P(home team wins), simulating goals from paired xG draws. Ties → 50/50."""
+    home_goals, away_goals = rng.poisson(home_draws), rng.poisson(away_draws)
+    return float(((home_goals > away_goals) + 0.5 * (home_goals == away_goals)).mean())

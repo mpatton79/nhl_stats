@@ -12,7 +12,8 @@ in. Regular-season games in the evaluated seasons are scored against:
   - offense × opp. defence   (no home ice)
   - full model               (offense × opp. defence × home/away factor)
 Intervals are checked for coverage (an 80% interval should contain the
-actual result ~80% of the time), and P(home xG > away xG) by Brier score.
+actual result ~80% of the time), P(home xG > away xG) by Brier score, and
+P(home win) by accuracy, Brier score, log loss and a reliability table.
 """
 
 import argparse
@@ -26,7 +27,7 @@ from xg.config import MODELS_DIR
 
 from .config import (DB_PATH, HALF_LIFE_GAMES, N_DRAWS, PRIOR_GAMES, QUANTILES, REGULAR,
                      SEED, TEST_SEASON, TUNE_SEASON)
-from .engine import RatingEngine, load_completed
+from .engine import RatingEngine, load_completed, win_probability
 
 BACKTEST_PATH = MODELS_DIR / "forecast_backtest.json"
 
@@ -46,6 +47,7 @@ def run(games: pd.DataFrame, seasons: list[str], half_life: float, prior: float,
                 home_draws = engine.sample(g.home_team, exp["home_xg"], N_DRAWS, rng)
                 away_draws = engine.sample(g.away_team, exp["away_xg"], N_DRAWS, rng)
                 p_home = float((home_draws > away_draws).mean())
+                p_win  = win_probability(home_draws, away_draws, rng)
             for side, other, actual, draws in (("home", "away", g.home_xg, home_draws if sample else None),
                                                 ("away", "home", g.away_xg, away_draws if sample else None)):
                 avg = exp["league_avg"]
@@ -60,6 +62,9 @@ def run(games: pd.DataFrame, seasons: list[str], half_life: float, prior: float,
                     row.update({f"q{int(q * 100)}": v for q, v in zip(QUANTILES, np.quantile(draws, QUANTILES))})
                     row["p_win_xg"] = p_home if side == "home" else 1 - p_home
                     row["won_xg"] = float(actual > (g.away_xg if side == "home" else g.home_xg))
+                    row["p_win"] = p_win if side == "home" else 1 - p_win
+                    won = g.home_score > g.away_score
+                    row["won"] = float(won if side == "home" else not won)
                 rows.append(row)
         engine.update(g.home_team, g.away_team, g.home_xg, g.away_xg, exp)
 
@@ -87,6 +92,23 @@ def summarise(df: pd.DataFrame) -> dict:
             "mean_p": round(float(home["p_win_xg"].mean()), 3),
             "actual_rate": round(float(base), 3),
         }
+        p, won = home["p_win"].clip(1e-6, 1 - 1e-6), home["won"]
+        fav_p = np.maximum(p, 1 - p)
+        fav_won = np.where(p >= 0.5, won, 1 - won)
+        bands = pd.cut(fav_p, [0.5, 0.55, 0.6, 0.65, 1.0], include_lowest=True)
+        reliability = (pd.DataFrame({"band": bands.astype(str), "p": fav_p, "won": fav_won})
+                       .groupby("band").agg(avg_prob=("p", "mean"), favourite_won=("won", "mean"),
+                                            games=("won", "size")).round(3))
+        out["p_home_win"] = {
+            "accuracy":            round(float(((p >= 0.5) == won).mean()), 3),
+            "accuracy_pick_home":  round(float(won.mean()), 3),
+            "brier":               round(float(((p - won) ** 2).mean()), 4),
+            "brier_coin_flip":     0.25,
+            "log_loss":            round(float(-(won * np.log(p) + (1 - won) * np.log(1 - p)).mean()), 4),
+            "log_loss_coin_flip":  round(float(np.log(2)), 4),
+            "mean_p":              round(float(p.mean()), 3),
+            "reliability":         reliability.reset_index().to_dict(orient="records"),
+        }
     return out
 
 
@@ -100,6 +122,11 @@ def _print(season: str, s: dict):
         print(f"  interval coverage: 50% → {s['coverage_50']:.3f}   80% → {s['coverage_80']:.3f}")
         print(f"  P(home xG > away xG): Brier {p['brier']} vs constant {p['brier_constant']} "
               f"(mean p {p['mean_p']}, actual {p['actual_rate']})")
+        w = s["p_home_win"]
+        print(f"  P(home win): picks the winner {w['accuracy']:.1%} (always-home {w['accuracy_pick_home']:.1%}); "
+              f"Brier {w['brier']} vs coin flip 0.25; log loss {w['log_loss']} vs {w['log_loss_coin_flip']}")
+        for r in w["reliability"]:
+            print(f"    favourite at {r['band']:<14} avg {r['avg_prob']:.3f} → won {r['favourite_won']:.3f}  ({r['games']} games)")
 
 
 def main():

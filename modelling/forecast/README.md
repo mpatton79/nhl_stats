@@ -5,6 +5,7 @@ Forecasts expected goals (xG) for NHL games that haven't been played yet. For ev
 - each team's expected xG
 - a range of likely outcomes (10th to 90th percentile)
 - the probability that the home team generates more xG than the away team
+- the probability that the home team wins
 
 It builds on the shot-level xG from [`../xg`](../README.md).
 
@@ -27,7 +28,9 @@ How the ratings are calculated:
 
 **2. Spread: weighted bootstrap.** After each completed game, the engine records how far each team landed from its forecast as a ratio (actual ÷ expected). To forecast a game, it draws 4,000 of those ratios from the team's own past games, with the same recency weights, and multiplies them by the expected value. The draws produce the percentiles and the head-to-head probability.
 
-**3. Online by construction.** The engine walks through games in date order. It predicts each game using only earlier games, then updates. This means the backtest uses the same code as live forecasting. Live forecasts freeze ratings at the latest completed game, so a game three weeks out uses today's ratings.
+**3. Win probability: from chances to goals.** Each pair of xG draws is turned into a goal total for each team with a Poisson draw. Goals from many small-probability shots follow a Poisson distribution with mean equal to xG very closely. The share of simulations the home team wins is `p_home_win`, with ties counted as a 50/50 overtime or shootout. Goal luck flattens xG edges: a team with a 90% chance of out-chancing its opponent might only have about a 69% chance of winning.
+
+**4. Online by construction.** The engine walks through games in date order. It predicts each game using only earlier games, then updates. This means the backtest uses the same code as live forecasting. Live forecasts freeze ratings at the latest completed game, so a game three weeks out uses today's ratings.
 
 ## Usage
 
@@ -53,7 +56,7 @@ python run_pipeline.py --only forecast  # just re-forecast
 -- Tonight's games
 SELECT away_team, home_team,
        ROUND(away_xg, 2) AS away_xg, ROUND(home_xg, 2) AS home_xg,
-       ROUND(p_home_xg_higher, 2) AS p_home
+       ROUND(p_home_win, 2) AS p_home_win
 FROM v_game_xg_forecast
 WHERE game_date = CURRENT_DATE
 ORDER BY start_time_utc;
@@ -73,6 +76,7 @@ python -m forecast.backtest --grid   # try half-life / shrinkage combinations on
 | `home_xg`, `away_xg` | Expected xG |
 | `home_xg_p10` … `home_xg_p90` (and `away_`) | Range of likely outcomes: 10th, 25th, 50th, 75th and 90th percentiles |
 | `p_home_xg_higher` | Probability the home team generates more xG |
+| `p_home_win` | Probability the home team wins (overtime and shootouts included) |
 | `home_off_rating`, `home_def_rating` (and `away_`) | Ratings relative to league average (1.10 = 10% above) |
 | `league_avg_xg`, `home_factor` | League average xG per team-game, and the home-ice multiplier |
 | `forecast_date`, `ratings_through` | When the forecast ran, and the last completed game it used |
@@ -88,13 +92,18 @@ Each team-game is predicted from earlier games only. Errors are in xG per team-g
 | Error: team's own offense only | 0.811 | 0.810 |
 | Error: offense × opponent's defense | 0.786 | 0.794 |
 | **Error: full model (adds home ice)** | **0.780** | **0.789** |
-| 50% range contains the actual result | 48% | 51% |
+| 50% range contains the actual result | 49% | 51% |
 | 80% range contains the actual result | 78% | 79% |
-| Home-team-wins-xG probability, Brier score (model / constant guess) | 0.222 / 0.246 | 0.227 / 0.248 |
+| Home-team-wins-xG probability, Brier score (model / constant guess) | 0.222 / 0.246 | 0.228 / 0.248 |
+| **Picks the winning team** | **58.6%** | **55.9%** |
+| Always picking the home team | 56.2% | 52.2% |
+| Win probability, Brier score (model / coin flip) | 0.238 / 0.250 | 0.244 / 0.250 |
 
 **How to read these:**
 - **Single games are noisy.** A team's xG swings by about ±0.85 from game to game, so even a good model only beats the league average by 5–7%. The forecast's value is in getting the average and the range right, and the ranges are well calibrated.
 - **Probabilities are slightly overconfident in the 60–80% band.** Games forecast at about 75% came true about 68% of the time. Games at 80%+ are accurate (85% forecast, 84% actual).
+- **Picking winners has a low ceiling.** In 2025-26, even knowing each game's actual xG in hindsight, the team with more xG won only 59% of games. The model's 55.9% gets about two-thirds of the way from a coin flip to that ceiling. One season's accuracy carries a margin of error of about ±2.7 points.
+- **Win probabilities are well calibrated where most games sit.** When the favorite was given 50–55%, it won 53% (2025-26). Favorites at 55–65% won 2–3 points less often than forecast, the same home lean as above. Probabilities rarely go beyond 70%, which suits a sport this random.
 - **The two teams are sampled independently.** That's reasonable because their residuals are nearly uncorrelated (r = -0.05).
 
 ## Configuration

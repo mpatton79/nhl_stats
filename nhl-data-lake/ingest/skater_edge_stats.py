@@ -19,7 +19,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from config import NHL_WEB_API, SEASONS, RAW_DIR, LAKE_DIR
+from config import NHL_WEB_API, SEASONS, RAW_DIR, LAKE_DIR, CURRENT_SEASON, CURRENT_SEASON_CACHE_HOURS
 from ingest.http_client import fetch_and_cache
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,9 @@ def _load_player_ids_by_season(seasons: list[str]) -> dict[str, list[int]]:
 def fetch_skater_edge(player_id: int, season: str) -> dict | None:
     url   = f"{NHL_WEB_API}/cat/edge/skater-detail/{player_id}/{season}/{GAME_TYPE}"
     cache = RAW_DIR_SKATER / season / f"{player_id}.json"
-    return fetch_and_cache(url, cache)
+    # In-progress season: refresh once the cached copy is older than the limit
+    max_age = CURRENT_SEASON_CACHE_HOURS if season == CURRENT_SEASON else None
+    return fetch_and_cache(url, cache, max_age_hours=max_age)
 
 
 def parse_skater_edge(player_id: int, season: str, data: dict) -> dict:

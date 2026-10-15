@@ -19,6 +19,12 @@ def _current_season_start() -> int:
 _start = _current_season_start()
 SEASONS = [f"{y}{y+1}" for y in range(_start - 10, _start + 1)]
 
+# The in-progress season's data changes daily, so its raw cache must be refreshed.
+# Cheap pulls always re-fetch it; expensive per-team/per-player pulls re-fetch
+# once the cached copy is older than this (so same-day re-runs stay fast).
+CURRENT_SEASON = SEASONS[-1]
+CURRENT_SEASON_CACHE_HOURS = 12
+
 # 2 = regular season, 3 = playoffs
 GAME_TYPES = {"regular": 2, "playoffs": 3}
 

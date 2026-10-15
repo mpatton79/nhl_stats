@@ -173,8 +173,17 @@ See [`queries/examples.sql`](queries/examples.sql) for ready-to-run queries incl
 
 ## Incremental updates
 
-Raw JSON is cached on disk. Re-running any ingest script will skip already-cached files.  
-To force a refresh of specific data, delete the relevant file from `data/raw/` and re-run.
+Raw JSON is cached on disk. For completed seasons, re-running any ingest script skips already-cached files, since that data never changes.
+
+The in-progress season (`CURRENT_SEASON` in `config.py`) is refreshed on every run, because its data changes daily:
+
+| Data | Current-season refresh |
+|---|---|
+| Standings, team list, team stats, schedules/scores, skater and goalie stats, rosters | Re-fetched on every run |
+| Team and skater Edge stats (hundreds of calls) | Re-fetched when the cached copy is older than `CURRENT_SEASON_CACHE_HOURS` (12), so same-day re-runs stay fast |
+| Play-by-play and boxscores | Fetched once per finished game; play-by-play only for games through yesterday, so a game isn't cached before it's complete |
+
+To force a refresh of anything else, delete the relevant file from `data/raw/` and re-run.
 
 To add the current season's new games:
 

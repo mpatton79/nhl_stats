@@ -13,7 +13,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from config import NHL_WEB_API, NHL_STATS_API, SEASONS, RAW_DIR, LAKE_DIR
+from config import NHL_WEB_API, NHL_STATS_API, SEASONS, RAW_DIR, LAKE_DIR, CURRENT_SEASON
 from ingest.http_client import fetch_and_cache, get_json
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ LAKE_PLAYERS = LAKE_DIR / "players"
 
 # ── Skater season stats ───────────────────────────────────────────────────────
 
-def fetch_skater_stats(season: str) -> list[dict]:
+def fetch_skater_stats(season: str, force: bool = False) -> list[dict]:
     """Fetch all skater summary stats for a season (regular season)."""
     url    = f"{NHL_STATS_API}/skater/summary"
     cache  = RAW_PLAYERS / f"skaters_{season}.json"
@@ -34,7 +34,7 @@ def fetch_skater_stats(season: str) -> list[dict]:
         "sort":       "points",
         "dir":        "DESC",
     }
-    data = fetch_and_cache(url, cache, params=params)
+    data = fetch_and_cache(url, cache, params=params, force=force)
     if not data:
         return []
 
@@ -68,7 +68,7 @@ def fetch_skater_stats(season: str) -> list[dict]:
 
 # ── Goalie season stats ───────────────────────────────────────────────────────
 
-def fetch_goalie_stats(season: str) -> list[dict]:
+def fetch_goalie_stats(season: str, force: bool = False) -> list[dict]:
     """Fetch all goalie summary stats for a season."""
     url    = f"{NHL_STATS_API}/goalie/summary"
     cache  = RAW_PLAYERS / f"goalies_{season}.json"
@@ -78,7 +78,7 @@ def fetch_goalie_stats(season: str) -> list[dict]:
         "sort":       "wins",
         "dir":        "DESC",
     }
-    data = fetch_and_cache(url, cache, params=params)
+    data = fetch_and_cache(url, cache, params=params, force=force)
     if not data:
         return []
 
@@ -134,12 +134,13 @@ def run(seasons: list[str] | None = None):
     all_skaters, all_goalies = [], []
 
     for season in _seasons:
+        live = season == CURRENT_SEASON   # in-progress season: always re-pull
         logger.info("Skater stats %s", season)
-        rows = fetch_skater_stats(season)
+        rows = fetch_skater_stats(season, force=live)
         all_skaters.extend(rows)
 
         logger.info("Goalie stats %s", season)
-        rows = fetch_goalie_stats(season)
+        rows = fetch_goalie_stats(season, force=live)
         all_goalies.extend(rows)
 
     if all_skaters:

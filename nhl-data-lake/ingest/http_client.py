@@ -50,14 +50,18 @@ def get_json(url: str, params: dict = None) -> dict | list | None:
         return None
 
 
-def fetch_and_cache(url: str, cache_path: Path, params: dict = None, force: bool = False) -> dict | list | None:
+def fetch_and_cache(url: str, cache_path: Path, params: dict = None, force: bool = False,
+                    max_age_hours: float | None = None) -> dict | list | None:
     """
     Fetch *url* and save raw JSON to *cache_path*.
-    Returns cached data if file already exists (unless force=True).
+    Returns cached data if the file already exists, unless force=True or the
+    file is older than max_age_hours.
     """
     if cache_path.exists() and not force:
-        with open(cache_path) as f:
-            return json.load(f)
+        fresh = max_age_hours is None or (time.time() - cache_path.stat().st_mtime) < max_age_hours * 3600
+        if fresh:
+            with open(cache_path) as f:
+                return json.load(f)
 
     data = get_json(url, params=params)
     if data is not None:

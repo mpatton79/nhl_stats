@@ -26,7 +26,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from config import NHL_WEB_API, SEASONS, RAW_DIR, LAKE_DIR
+from config import NHL_WEB_API, SEASONS, RAW_DIR, LAKE_DIR, CURRENT_SEASON, CURRENT_SEASON_CACHE_HOURS
 from ingest.http_client import fetch_and_cache
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,9 @@ def _load_team_ids() -> dict[str, str]:
 
 def _fetch(endpoint: str, team_id: str, season: str, cache_path) -> dict | None:
     url = f"{NHL_WEB_API}/edge/{endpoint}/{team_id}/{season}/{GAME_TYPE}"
-    return fetch_and_cache(url, cache_path)
+    # In-progress season: refresh once the cached copy is older than the limit
+    max_age = CURRENT_SEASON_CACHE_HOURS if season == CURRENT_SEASON else None
+    return fetch_and_cache(url, cache_path, max_age_hours=max_age)
 
 
 # ── Fetch functions ───────────────────────────────────────────────────────────

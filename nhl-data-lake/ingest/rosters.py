@@ -11,7 +11,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from config import NHL_WEB_API, SEASONS, RAW_DIR, LAKE_DIR
+from config import NHL_WEB_API, SEASONS, RAW_DIR, LAKE_DIR, CURRENT_SEASON
 from ingest.http_client import fetch_and_cache, get_json
 
 logger = logging.getLogger(__name__)
@@ -47,10 +47,10 @@ def _parse_player(p: dict, team: str, season: str, position_type: str) -> dict:
     }
 
 
-def fetch_roster(team: str, season: str) -> list[dict]:
+def fetch_roster(team: str, season: str, force: bool = False) -> list[dict]:
     url   = f"{NHL_WEB_API}/roster/{team}/{season}"
     cache = RAW_ROSTERS / season / f"{team}.json"
-    data  = fetch_and_cache(url, cache)
+    data  = fetch_and_cache(url, cache, force=force)
     if not data:
         return []
 
@@ -70,7 +70,7 @@ def run(seasons: list[str] | None = None):
     for season in _seasons:
         for team in ALL_TEAMS:
             logger.info("Roster %s %s", team, season)
-            rows = fetch_roster(team, season)
+            rows = fetch_roster(team, season, force=(season == CURRENT_SEASON))
             all_rows.extend(rows)
 
     if all_rows:

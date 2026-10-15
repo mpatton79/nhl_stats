@@ -6,7 +6,7 @@ A Streamlit web dashboard for exploring NHL data — live scores, standings, pla
 
 | Page | Description |
 |---|---|
-| Games | Live and historical scores with boxscore drill-down; auto-refreshes every 30s for today |
+| Games | Live and historical scores with boxscore drill-down, each game's pre-game xG and win-probability forecast, and actual xG from the shot model once a game's play-by-play is in; auto-refreshes every 30s for today |
 | Standings | Division and league-wide standings with team logos |
 | Players | Skater stats with season/team/position filters, player search, and bio drill-down |
 | Edge Stats | NHL Edge advanced metrics (speed, puck possession, rush attempts) |
